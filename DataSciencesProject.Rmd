@@ -1,0 +1,2500 @@
+---
+title: "DataSciencesApplication"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r}
+library(ez)
+library(tidyr) 
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+library(knitr)
+
+#Question 1
+  #Create 1-2 graphs which demonstrate when canadians will be ready to resume the 10 behaviours in the when ready section
+  #Compare the differences between Canadians in different age groups
+    #18-34, 35-49, 50-64, 65+
+#Write 1 brief paragraph that describes notable differences, imagine you show this to a client with no background in statistics. 
+
+#Import Data
+  setwd("C:/Users/David/Desktop/RStudio/Data") #please set this to whatever directory you're working with 
+  RawData <- read_csv("DataSciencesFile.csv")
+  #now I want a version without the top two rows
+    #Passes it by twice; probably a better way to do this but hey it works
+      SnippedData <- RawData[(rownames(RawData) != 1),]
+      SnippedData <- SnippedData[(rownames(SnippedData) != 1),]
+#Group People
+   #need the age row in a numerical variable, since we'll be doing calculations
+      SnippedData$birthyear <- as.numeric(SnippedData$birthyear)
+    #Okay now that it's numeric time to calculate the ages
+      SnippedData <- SnippedData %>% mutate(age = (birthyear - 2022)*-1)
+    #Now to put those ages into age brackets
+      #Probably many ways to do this, but I know mutate so we'll go with that
+          #no need for 18 and below category since they get removed by survey anyways
+      SnippedData <- SnippedData %>% mutate(AgeGroup = case_when(age >= 18 & age <= 34 ~ '18 to 34',
+                                                                 age >= 35 & age <= 49 ~ '35 to 49',
+                                                                 age >= 50 & age <= 64 ~ '50 to 64',
+                                                                 age >= 65 ~ '65+'))
+#Select the Variables we need 
+    SnippedData <- SnippedData %>% select(SnippedData = AgeGroup, whenready_1, whenready_2, 
+                                          whenready_3, whenready_4, whenready_5, whenready_6, 
+                                          whenready_7, whenready_8, whenready_9, whenready_10)
+#Rename them
+    SnippedData <- SnippedData %>% rename(EssentialDomesticTravel = whenready_1,
+                                          EssentialInternationalTravel = whenready_2,
+                                          LeisureDomesticTravel = whenready_3,
+                                          LeisureInternationalTravel = whenready_4,
+                                          InPersonShopping = whenready_5, 
+                                          InPersonWorking = whenready_6,
+                                          InPersonRestaurants = whenready_7, 
+                                          BarsClubsCrowds = whenready_8,
+                                          LargePublicEvents = whenready_9,
+                                          PublicTransit = whenready_10,
+                                          AgeGroup = SnippedData)
+    
+    
+#Remove Blank Response 
+    SnippedData <- na.omit(SnippedData) 
+
+    
+    
+#Group them 
+    SnippedData %>% group_by(AgeGroup)
+#Get Counts for Each Category to make a clustered bar chart
+      #First Step is to split up and count because I couldn't figure out how to use the melt function for this
+          #But I'll also assign a unique identifier so we can have a unified column name to bind_cols to
+    EssentialDomesticTravel <- SnippedData %>% count(AgeGroup, EssentialDomesticTravel)
+        EssentialDomesticTravel$TravelType <- 'EssentialDomesticTravel'
+        EssentialDomesticTravel <- rename(EssentialDomesticTravel, ResponseType = EssentialDomesticTravel)
+       
+    
+    EssentialInternationalTravel <- SnippedData %>% count(AgeGroup, EssentialInternationalTravel)
+      EssentialInternationalTravel$TravelType <- 'EssentialInternationalTravel'
+        EssentialInternationalTravel <- rename(EssentialInternationalTravel, ResponseType = EssentialInternationalTravel)
+     
+    LeisureDomesticTravel <- SnippedData %>% count(AgeGroup, LeisureDomesticTravel)
+     LeisureDomesticTravel$TravelType <- 'LeisureDomesticTravel'
+        LeisureDomesticTravel <- rename(LeisureDomesticTravel, ResponseType = LeisureDomesticTravel)
+        
+    LeisureInternationalTravel <- SnippedData %>% count(AgeGroup, LeisureInternationalTravel)
+       LeisureInternationalTravel$TravelType <- 'LeisureInternationalTravel'
+       LeisureInternationalTravel <- rename(LeisureInternationalTravel, ResponseType = LeisureInternationalTravel)
+    
+    InPersonShopping <- SnippedData %>% count(AgeGroup, InPersonShopping)
+       InPersonShopping$TravelType <- 'InPersonShopping'
+       InPersonShopping <- rename(InPersonShopping, ResponseType = InPersonShopping)
+    
+   InPersonWorking <- SnippedData %>% count(AgeGroup, InPersonWorking)
+       InPersonWorking$TravelType <- 'InPersonWorking'
+        InPersonWorking <- rename(InPersonWorking, ResponseType = InPersonWorking)
+    
+    BarsClubsCrowds <- SnippedData %>% count(AgeGroup, BarsClubsCrowds)
+       BarsClubsCrowds$TravelType <- 'BarsClubsCrowds'
+       BarsClubsCrowds <- rename(BarsClubsCrowds, ResponseType = BarsClubsCrowds)
+    
+    LargePublicEvents <- SnippedData %>% count(AgeGroup, LargePublicEvents)
+        LargePublicEvents$TravelType <- 'LargePublicEvents'
+       LargePublicEvents <- rename(LargePublicEvents, ResponseType = LargePublicEvents)
+    
+    PublicTransit <- SnippedData %>% count(AgeGroup,  PublicTransit)
+        PublicTransit$TravelType <- 'PublicTransit'
+        PublicTransit <- rename(PublicTransit, ResponseType = PublicTransit)
+    
+      
+         #Now to Graph it
+                #these will save a png image to the computer, simply make one a comment when you want to use the other
+        
+        
+      #Travel 
+          TravelResponses <- bind_rows(EssentialInternationalTravel, EssentialDomesticTravel, 
+                                       LeisureInternationalTravel, LeisureDomesticTravel, PublicTransit, id = NULL) 
+                png(filename="CanadianOutings.png", width=1800, height=600)
+                   png(filename="TravelCovidCanada.png", width=1800, height=600)
+                   ggplot(TravelResponses, aes(x = AgeGroup, y = n, fill = ResponseType)) + 
+                   geom_bar(stat = 'identity', position = 'fill', width = 1.0) + ylab("relative frequencies") + facet_grid(~ TravelType) + ggtitle("How Comfortable Are Canadians Traveling?")
+                   
+                   
+
+                   
+                   
+          #Attending Events
+                TravelResponses <- bind_rows(InPersonShopping, InPersonWorking, BarsClubsCrowds, LargePublicEvents, id = NULL) 
+                  png(filename="CanadianOutings.png", width=1800, height=600)
+                   ggplot(TravelResponses, aes(x = AgeGroup, y = n, fill = ResponseType)) + 
+                   geom_bar(stat = 'identity', position = 'fill', width = 1.0) + ylab("Relative frequencies") + facet_grid(~ TravelType) +
+                     ggtitle("How Comfortable are Canadians Going Out?")
+                   
+                   
+                   
+                   
+                   
+                   
+                   
+#Please see pdf for write up and charts, charts are too large to neetly display in Rmarkdown as far as I know
+
+```
+```{r}
+
+
+#######Table1#########
+library(ez)
+library(tidyr) 
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+library(naniar)
+library(janitor)
+
+
+setwd("C:/Users/David/Desktop/RStudio/Data")
+  RawData <- read_csv("DataSciencesFile.csv") 
+  #now I want a version without the top two rows
+    #Passes it by twice; probably a better way to do this but hey it works
+      SnippedData <- RawData[(rownames(RawData) != 1),]
+      SnippedData <- SnippedData[(rownames(SnippedData) != 1),]
+      
+SnippedData$birthyear <- as.numeric(SnippedData$birthyear)
+    #Okay now that it's numeric time to calculate the ages
+      SnippedData <- SnippedData %>% mutate(age = (birthyear - 2022)*-1)
+    #Now to put those ages into age brackets
+      #Probably many ways to do this, but I know mutate so we'll go with that
+          #no need for 18 and below category since they get removed by survey anyways
+      SnippedData <- SnippedData %>% mutate(AgeGroup = case_when(age >= 18 & age <= 34 ~ '18 to 34',
+                                                                 age >= 35 & age <= 49 ~ '35 to 49',
+                                                                 age >= 50 & age <= 64 ~ '50 to 64',
+                                                                 age >= 65 ~ '65+'))
+      
+  
+      
+      
+      
+      
+#table 1: % familiar with each source of information 
+    #each row should be a source of information
+    #Variables to input into columns should be: 
+        #Gender
+        #Age Groups
+        #Regions
+        #Voting Behavior in 2019
+          #but not for those who didn't vote
+      
+#Create the Data for CrossTabing 
+      SuperSnipped <- SnippedData %>% select(AgeGroup, Province, gender, VotingBehaviour = Q110, 
+                                            CTV = news_canada_1, 
+                                             CBC = news_canada_2,
+                                             TheHillTimes = news_canada_3, 
+                                             MacLeans = news_canada_4,
+                                             TheCanadianPublicAffairsChannel = news_canada_6,
+                                             TheGlobeandMail = news_canada_7, 
+                                             TheNationalPost = news_canada_8, 
+                                             Toronto_Star = news_canada_9,
+                                             TheCalgaryHerald = news_canada_10,
+                                             TheVancouverSun = news_canada_11,
+                                             TheProvince = news_canada_12,
+                                             TheLeaderPost = news_canada_13, 
+                                             TheWinnipegFreePress = news_canada_14, 
+                                             TheYukonNews = news_canada_15,
+                                             EveningTelegram = news_canada_16, 
+                                             TheDailyGleaner = news_canada_17,
+                                            TheHalifaxHerald = news_canada_18,
+                                            LaPresse = news_canada_19, 
+                                            LaDevoir = news_canada_20, 
+                                            LeJournaldeMontréalLeJournaldeQuébec = news_canada_21,
+                                            CNN = news_canada_22,
+                                            FoxNews = news_canada_23,
+                                            TheNewYorkTimes = news_canada_24, 
+                                            TheGuardian = news_canada_25, 
+                                            TheEconomist = news_canada_26, 
+                                            TheWallStreetJournal = news_canada_27, 
+                                            TheHuffingtonPost = news_canada_28)
+      
+      #Remove Voting Patterns we won't use
+            SuperSnipped <-subset(SuperSnipped, VotingBehaviour!="I did not vote")
+            SuperSnipped <- subset(SuperSnipped, VotingBehaviour !="I don’t remember")
+            SuperSnipped <- subset(SuperSnipped, VotingBehaviour !="Other")
+            SuperSnipped <- subset(SuperSnipped, VotingBehaviour !="The People’s Party led by Maxime Bernier")
+            
+       #Remove -99 value ENTIRE ROWS, but preserve the NA space as it will be an important factor in keeping our data together     
+            SuperSnipped <- subset(SuperSnipped, CTV != -99 | is.na(CTV))
+            SuperSnipped <- subset(SuperSnipped, CBC != -99 | is.na(CBC))
+            SuperSnipped <- subset(SuperSnipped, TheHillTimes != -99 | is.na(TheHillTimes))
+            SuperSnipped <- subset(SuperSnipped, MacLeans != -99 | is.na(MacLeans))
+            SuperSnipped <- subset(SuperSnipped, TheCanadianPublicAffairsChannel != -99 | is.na(TheCanadianPublicAffairsChannel))
+            SuperSnipped <- subset(SuperSnipped, TheGlobeandMail != -99 | is.na(TheGlobeandMail))
+            SuperSnipped <- subset(SuperSnipped, Toronto_Star != -99 | is.na(Toronto_Star))
+            SuperSnipped <- subset(SuperSnipped, TheCalgaryHerald != -99 | is.na(TheCalgaryHerald))
+            SuperSnipped <- subset(SuperSnipped, TheVancouverSun != -99 | is.na(TheVancouverSun))
+            SuperSnipped <- subset(SuperSnipped, TheProvince != -99 | is.na(TheProvince))
+            SuperSnipped <- subset(SuperSnipped, TheLeaderPost != -99 | is.na(TheLeaderPost))
+            SuperSnipped <- subset(SuperSnipped, TheWinnipegFreePress != -99 | is.na(TheWinnipegFreePress))
+            SuperSnipped <- subset(SuperSnipped, TheYukonNews != -99 | is.na(TheYukonNews))
+            SuperSnipped <- subset(SuperSnipped, TheDailyGleaner != -99 | is.na(TheDailyGleaner))
+            SuperSnipped <- subset(SuperSnipped, TheHalifaxHerald != -99 | is.na(TheHalifaxHerald))
+            SuperSnipped <- subset(SuperSnipped, LaPresse != -99 | is.na(LaPresse))
+            SuperSnipped <- subset(SuperSnipped, LaDevoir != -99 | is.na(LaDevoir))
+            SuperSnipped <- subset(SuperSnipped, LeJournaldeMontréalLeJournaldeQuébec != -99 | is.na(LeJournaldeMontréalLeJournaldeQuébec))
+            SuperSnipped <- subset(SuperSnipped, CNN != -99 | is.na(CNN))
+            SuperSnipped <- subset(SuperSnipped, FoxNews != -99 | is.na(FoxNews))
+            SuperSnipped <- subset(SuperSnipped, TheNewYorkTimes != -99 | is.na(TheNewYorkTimes))
+            SuperSnipped <- subset(SuperSnipped, TheGuardian != -99 | is.na(TheGuardian))
+            SuperSnipped <- subset(SuperSnipped, TheEconomist != -99 | is.na(TheEconomist))
+            SuperSnipped <- subset(SuperSnipped, TheWallStreetJournal != -99 | is.na(TheWallStreetJournal))
+            SuperSnipped <- subset(SuperSnipped, TheHuffingtonPost != -99 | is.na(TheHuffingtonPost))
+            
+#Create a crosstab that summarizes data from 'sources of information'
+  #if they saw sources of information but did not select it in the question, their response will be 0
+  #If they saw the source & selected it, response would be named
+  #Blanks mean they were not presented with that source of information in the question, be CAREFUL TO EXCLUDE PARTICIPANTS who were not presented with info from computation of cross tab
+            
+#CTV Cross Tab in Tabyl
+  crosstab1 <- tabyl(SuperSnipped, CTV, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, CTV, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, CTV, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, CTV, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+
+CTVCrosstab <- combinedtab
+
+#CBC Cross Tab in Tabyl
+  crosstab1 <- tabyl(SuperSnipped, CBC, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, CBC, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, CBC, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, CBC, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+
+CBCCrosstab <- combinedtab
+
+
+#TheHillTimesCrosstab
+crosstab1 <- tabyl(SuperSnipped, TheHillTimes, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheHillTimes, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheHillTimes, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheHillTimes, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+  
+TheHillTimesCrosstab <- combinedtab
+
+
+#TheCanadianPublicAffairsChannelCrosstab
+  crosstab1 <- tabyl(SuperSnipped, TheCanadianPublicAffairsChannel, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheCanadianPublicAffairsChannel, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheCanadianPublicAffairsChannel, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheCanadianPublicAffairsChannel, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+  
+TheCanadianPublicAffairsChannelCrosstab <- combinedtab
+
+#MacLeansCrossTab
+  crosstab1 <- tabyl(SuperSnipped, MacLeans, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, MacLeans, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, MacLeans, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, MacLeans, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+MacLeansCrosstab <- combinedtab
+
+#TheGloadAndMailCrossTab
+  crosstab1 <- tabyl(SuperSnipped, TheGlobeandMail, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheGlobeandMail, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheGlobeandMail, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheGlobeandMail, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheGlobeandMailCrosstab <- combinedtab
+
+#TheNationalPostCrossTab
+crosstab1 <- tabyl(SuperSnipped, TheNationalPost, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheNationalPost, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheNationalPost, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheNationalPost, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheNationalPostCrosstab <- combinedtab
+
+#Toronto_StarCrossTab
+crosstab1 <- tabyl(SuperSnipped, Toronto_Star, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, Toronto_Star, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, Toronto_Star, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, Toronto_Star, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TorontoStarCrosstab <- combinedtab
+
+#TheCalgaryHeraldCrossTab
+crosstab1 <- tabyl(SuperSnipped, TheCalgaryHerald, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheCalgaryHerald, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheCalgaryHerald, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheCalgaryHerald, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheCalgaryHeraldCrosstab <- combinedtab
+
+#TheVancouverSunCrosstab
+crosstab1 <- tabyl(SuperSnipped, TheVancouverSun, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheVancouverSun, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheVancouverSun, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheVancouverSun, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheVancouverSunCrosstab <- combinedtab
+
+
+
+#TheProvince
+  crosstab1 <- tabyl(SuperSnipped, TheProvince, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheProvince, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheProvince, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheProvince, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheProvinceCrosstab <- combinedtab
+
+#TheLeaderPostcrosstab
+  crosstab1 <- tabyl(SuperSnipped, TheLeaderPost, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheLeaderPost, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheLeaderPost, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheLeaderPost, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheLeaderPostcrosstab <- combinedtab
+
+#TheWinnipegFreePressCrosstab
+  crosstab1 <- tabyl(SuperSnipped, TheWinnipegFreePress, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheWinnipegFreePress, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheWinnipegFreePress, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheWinnipegFreePress, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheWinnipegFreePressCrosstab <- combinedtab
+
+
+#TheYukonNewsCrosstab
+crosstab1 <- tabyl(SuperSnipped, TheYukonNews, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-2,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  #crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheYukonNews, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-2,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  #crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheYukonNews, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-2,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  #crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheYukonNews, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-2,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  #crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheYukonNewsCrosstab <- combinedtab
+
+#EveningTelegramCrosstab
+crosstab1 <- tabyl(SuperSnipped, EveningTelegram, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, EveningTelegram, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, EveningTelegram, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, EveningTelegram, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+EveningTelegramCrosstab <- combinedtab
+
+
+
+#TheDailyGleaner
+crosstab1 <- tabyl(SuperSnipped, TheDailyGleaner, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheDailyGleaner, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheDailyGleaner, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheDailyGleaner, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheDailyGleanerCrosstab <- combinedtab
+
+#TheHalifaxHeraldCrosstab
+  crosstab1 <- tabyl(SuperSnipped, TheHalifaxHerald, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheHalifaxHerald, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheHalifaxHerald, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheHalifaxHerald, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheHalifaxHeraldcrosstab <- combinedtab
+
+
+
+#LaPresseCrosstab
+  crosstab1 <- tabyl(SuperSnipped, LaPresse, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, LaPresse, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, LaPresse, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, LaPresse, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+LaPressecrosstab <- combinedtab
+
+#LaDevoirCrosstab
+  crosstab1 <- tabyl(SuperSnipped, LaDevoir, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, LaDevoir, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, LaDevoir, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, LaDevoir, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+LaDevoirCrosstab <- combinedtab
+
+
+#LeJournaldeMontréalLeJournaldeQuébecCrosstab
+  crosstab1 <- tabyl(SuperSnipped, LeJournaldeMontréalLeJournaldeQuébec, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, LeJournaldeMontréalLeJournaldeQuébec, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, LeJournaldeMontréalLeJournaldeQuébec, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, LeJournaldeMontréalLeJournaldeQuébec, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+LeJournaldeMontréalLeJournaldeQuébecCrosstab <- combinedtab
+
+
+#CNNCrosstab
+  crosstab1 <- tabyl(SuperSnipped, CNN, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, CNN, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, CNN, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, CNN, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+CNNCrosstab <- combinedtab
+
+
+#FoxNewsCrosstab
+  crosstab1 <- tabyl(SuperSnipped, FoxNews, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, FoxNews, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, FoxNews, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, FoxNews, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+FoxNewsCrosstab <- combinedtab
+
+
+#TheNewYorkTimesCrosstab
+  crosstab1 <- tabyl(SuperSnipped, TheNewYorkTimes, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheNewYorkTimes, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheNewYorkTimes, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheNewYorkTimes, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheNewYorkTimesCrosstab <- combinedtab
+
+
+#TheGuardianCrosstab
+  crosstab1 <- tabyl(SuperSnipped, TheGuardian, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheGuardian, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheGuardian, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheGuardian, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheGuardianCrosstab <- combinedtab
+
+
+#TheEconomistCrosstab
+  crosstab1 <- tabyl(SuperSnipped, TheEconomist, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheEconomist, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheEconomist, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheEconomist, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheEconomistCrosstab <- combinedtab
+
+#TheWallStreetJournalCrosstab
+  crosstab1 <- tabyl(SuperSnipped, TheWallStreetJournal, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheWallStreetJournal, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheWallStreetJournal, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheWallStreetJournal, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheWallStreetJournalCrosstab <- combinedtab
+
+
+#TheHuffingtonPostCrosstab
+  crosstab1 <- tabyl(SuperSnipped, TheHuffingtonPost, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-3,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheHuffingtonPost, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-3,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheHuffingtonPost, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-3,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheHuffingtonPost, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-3,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet = 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+  combinedtab = combinedtab[-6]
+  combinedtab = combinedtab[-10]
+  combinedtab = combinedtab[-21]
+TheHuffingtonPostCrosstab <- combinedtab
+
+ATable <- rbind(CTVCrosstab, CBCCrosstab, TheCanadianPublicAffairsChannelCrosstab, MacLeansCrosstab,TheGlobeandMailCrosstab, TheNationalPostCrosstab, TorontoStarCrosstab, TheCalgaryHeraldCrosstab, TheVancouverSunCrosstab, TheProvinceCrosstab, TheLeaderPostcrosstab, TheWinnipegFreePressCrosstab, TheYukonNewsCrosstab, EveningTelegramCrosstab, TheDailyGleanerCrosstab, TheHalifaxHeraldcrosstab, LaPressecrosstab, LaDevoirCrosstab, LeJournaldeMontréalLeJournaldeQuébecCrosstab, CNNCrosstab, FoxNewsCrosstab, TheNewYorkTimesCrosstab, TheGuardianCrosstab, TheEconomistCrosstab, TheWallStreetJournalCrosstab, TheHuffingtonPostCrosstab)
+
+
+#this is the final product 
+  #a crosstable showing the % of participants by demographic that recognized each news source
+      #only calculates if they were actually presented with that option however. 
+
+ATable
+```
+```{r}
+###Table2
+
+library(ez)
+library(tidyr) 
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+library(naniar)
+library(janitor)
+library(tibble)
+
+
+setwd("C:/Users/David/Desktop/RStudio/Data")
+  RawData <- read_csv("DataSciencesFile.csv")
+  #now I want a version without the top two rows
+    #Passes it by twice; probably a better way to do this but hey it works
+      SnippedData <- RawData[(rownames(RawData) != 1),]
+      SnippedData <- SnippedData[(rownames(SnippedData) != 1),]
+      
+SnippedData$birthyear <- as.numeric(SnippedData$birthyear)
+    #Okay now that it's numeric time to calculate the ages
+      SnippedData <- SnippedData %>% mutate(age = (birthyear - 2022)*-1)
+    #Now to put those ages into age brackets
+      #Probably many ways to do this, but I know mutate so we'll go with that
+          #no need for 18 and below category since they get removed by survey anyways
+      SnippedData <- SnippedData %>% mutate(AgeGroup = case_when(age >= 18 & age <= 34 ~ '18 to 34',
+                                                                 age >= 35 & age <= 49 ~ '35 to 49',
+                                                                 age >= 50 & age <= 64 ~ '50 to 64',
+                                                                 age >= 65 ~ '65+'))
+
+#Create Data For Subsetting
+ SuperSnipped <- SnippedData %>% select(AgeGroup, Province, gender, VotingBehaviour = Q110, 
+                                             CTV = news_trust_1, 
+                                             CBC = news_trust_2,
+                                             TheHillTimes = news_trust_3, 
+                                             MacLeans = news_trust_4,
+                                             TheCanadianPublicAffairsChannel = news_trust_5,
+                                             TheGlobeandMail = news_trust_7, 
+                                             TheNationalPost = news_trust_8, 
+                                             Toronto_Star = news_trust_9,
+                                             TheCalgaryHerald = news_trust_10,
+                                             TheVancouverSun = news_trust_11,
+                                             TheProvince = news_trust_12,
+                                             TheLeaderPost = news_trust_13, 
+                                             TheWinnipegFreePress = news_trust_14, 
+                                             TheYukonNews = news_trust_15,
+                                             EveningTelegram = news_trust_16, 
+                                             TheDailyGleaner = news_trust_17,
+                                            TheHalifaxHerald = news_trust_18,
+                                            LaPresse = news_trust_19, 
+                                            LaDevoir = news_trust_20, 
+                                            LeJournaldeMontréalLeJournaldeQuébec = news_trust_21,
+                                            CNN = news_trust_22,
+                                            FoxNews = news_trust_23,
+                                            TheNewYorkTimes = news_trust_24, 
+                                            TheGuardian = news_trust_25, 
+                                            TheEconomist = news_trust_26, 
+                                            TheWallStreetJournal = news_trust_27, 
+                                            TheHuffingtonPost = news_trust_28)
+       #Remove Voting Patterns we won't use
+            SuperSnipped <-subset(SuperSnipped, VotingBehaviour!="I did not vote")
+            SuperSnipped <- subset(SuperSnipped, VotingBehaviour !="I don’t remember")
+            SuperSnipped <- subset(SuperSnipped, VotingBehaviour !="Other")
+            SuperSnipped <- subset(SuperSnipped, VotingBehaviour !="The People’s Party led by Maxime Bernier")
+            
+
+            
+#CTV Cross Tab in Tabyl
+  crosstab1 <- tabyl(SuperSnipped, CTV, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, CTV, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, CTV, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, CTV, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+CTVCrosstab <- add_column(combinedtab, PercTrustOutlet = 'CTV', .before = 1)
+
+#CBCCrosstab 
+crosstab1 <- tabyl(SuperSnipped, CBC, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, CBC, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, CBC, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, CBC, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+CBCCrosstab <- add_column(combinedtab, PercTrustOutlet = 'CBC', .before = 1)
+
+#TheHillTimesCrosstab
+crosstab1 <- tabyl(SuperSnipped, TheHillTimes, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheHillTimes, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheHillTimes, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheHillTimes, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+TheHillTimesCrosstab <- add_column(combinedtab, PercTrustOutlet = 'TheHillTimes', .before = 1)
+
+#MacLeansCrosstab
+crosstab1 <- tabyl(SuperSnipped, MacLeans, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, MacLeans, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, MacLeans, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, MacLeans, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+MacLeansCrosstab <- add_column(combinedtab, PercTrustOutlet = 'MacLeans', .before = 1)
+
+#TheCanadianPublicAffairsChannelCrosstab
+crosstab1 <- tabyl(SuperSnipped, TheCanadianPublicAffairsChannel, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheCanadianPublicAffairsChannel, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheCanadianPublicAffairsChannel, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheCanadianPublicAffairsChannel, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+TheCanadianPublicAffairsChannelCrosstab <- add_column(combinedtab, PercTrustOutlet = 'TheCanadianPublicAffairsChannel', .before = 1)
+
+#TheGlobeandMailCrosstab
+crosstab1 <- tabyl(SuperSnipped, TheGlobeandMail, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheGlobeandMail, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheGlobeandMail, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheGlobeandMail, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+TheGlobeandMailCrosstab <- add_column(combinedtab, PercTrustOutlet = 'TheGlobeandMail', .before = 1)
+
+#TheNationalPostCrosstab
+crosstab1 <- tabyl(SuperSnipped, TheNationalPost, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheNationalPost, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheNationalPost, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheNationalPost, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+TheNationalPostCrosstab <- add_column(combinedtab, PercTrustOutlet = 'TheNationalPost', .before = 1)
+
+#Toronto_StarCrosstab 
+crosstab1 <- tabyl(SuperSnipped, Toronto_Star, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, Toronto_Star, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, Toronto_Star, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, Toronto_Star, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+Toronto_StarCrosstab <- add_column(combinedtab, PercTrustOutlet = 'TorontoStar', .before = 1)
+
+#TheCalgaryHeraldcrosstab
+crosstab1 <- tabyl(SuperSnipped, TheCalgaryHerald, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheCalgaryHerald, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheCalgaryHerald, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheCalgaryHerald, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+TheCalgaryHeraldCrosstab <- add_column(combinedtab, PercTrustOutlet = 'TheCalgaryHerald', .before = 1)
+
+#TheVancouverSunCrosstab
+crosstab1 <- tabyl(SuperSnipped, TheVancouverSun, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheVancouverSun, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheVancouverSun, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheVancouverSun, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+TheVancouverSunCrosstab <- add_column(combinedtab, PercTrustOutlet = 'TheVancouverSun', .before = 1)
+
+
+#TheProvinceCrosstab
+crosstab1 <- tabyl(SuperSnipped, TheProvince, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheProvince, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheProvince, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheProvince, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+TheProvinceCrosstab <- add_column(combinedtab, PercTrustOutlet = 'TheProvince', .before = 1)
+
+
+#TheLeaderPostCrosstab
+crosstab1 <- tabyl(SuperSnipped, TheLeaderPost, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheLeaderPost, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheLeaderPost, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheLeaderPost, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+TheLeaderPostCrosstab <- add_column(combinedtab, PercTrustOutlet = 'TheLeaderPost', .before = 1)
+
+
+
+#TheWinnipegFreePressCrossTab
+crosstab1 <- tabyl(SuperSnipped, TheWinnipegFreePress, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheWinnipegFreePress, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheWinnipegFreePress, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheWinnipegFreePress, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+TheWinnipegFreePressCrosstab <- add_column(combinedtab, PercTrustOutlet = 'TheWinnipegFreePress', .before = 1)
+
+#TheYukonNewsCombinedtab
+crosstab1 <- tabyl(SuperSnipped, TheYukonNews, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheYukonNews, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheYukonNews, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheYukonNews, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+    TheYukonNewsCrosstab <- add_column(combinedtab, PercTrustOutlet = 'TheYukonNews', .before = 1)
+
+#EveningTelegramCrosstab
+crosstab1 <- tabyl(SuperSnipped, EveningTelegram, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, EveningTelegram, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, EveningTelegram, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, EveningTelegram, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+    EveningTelegramCrosstab <- add_column(combinedtab, PercTrustOutlet = 'EveningTelegram', .before = 1)
+    
+    
+#TheDailyGleanerCrosstab
+crosstab1 <- tabyl(SuperSnipped, TheDailyGleaner, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheDailyGleaner, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheDailyGleaner, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheDailyGleaner, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+    TheDailyGleanerCrosstab <- add_column(combinedtab, PercTrustOutlet = 'TheDailyGleaner', .before = 1)
+    
+    
+#TheHalifaxHeraldCrosstab
+    crosstab1 <- tabyl(SuperSnipped, TheHalifaxHerald, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheHalifaxHerald, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheHalifaxHerald, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheHalifaxHerald, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+    TheHalifaxHeraldCrosstab <- add_column(combinedtab, PercTrustOutlet = 'TheHalifaxHerald', .before = 1)
+    
+#LaPresseCrosstab
+      crosstab1 <- tabyl(SuperSnipped, LaPresse, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, LaPresse, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, LaPresse, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, LaPresse, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+    LaPresseCrosstab <- add_column(combinedtab, PercTrustOutlet = 'LaPresse', .before = 1)
+    
+    
+#LaDevoirCrosstab
+         crosstab1 <- tabyl(SuperSnipped, LaDevoir, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, LaDevoir, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, LaDevoir, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, LaDevoir, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+    LaDevoirCrosstab <- add_column(combinedtab, PercTrustOutlet = 'LaDevoir', .before = 1)
+    
+    
+#LeJournaldeMontréalLeJournaldeQuébec
+             crosstab1 <- tabyl(SuperSnipped, LeJournaldeMontréalLeJournaldeQuébec, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, LeJournaldeMontréalLeJournaldeQuébec, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, LeJournaldeMontréalLeJournaldeQuébec, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, LeJournaldeMontréalLeJournaldeQuébec, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+    LeJournaldeMontréalLeJournaldeQuébecCrosstab <- add_column(combinedtab, PercTrustOutlet = 'LeJournaldeMontréalLeJournaldeQuébec', .before = 1)
+    
+    
+#CNNCrosstab
+  crosstab1 <- tabyl(SuperSnipped, CNN, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, CNN, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, CNN, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, CNN, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+    CNNCrosstab <- add_column(combinedtab, PercTrustOutlet = 'CNN', .before = 1)
+    
+#FoxNews
+  crosstab1 <- tabyl(SuperSnipped, FoxNews, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, FoxNews, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, FoxNews, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, FoxNews, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+FoxNewsCrosstab  <- add_column(combinedtab, PercTrustOutlet = 'FoxNews', .before = 1)
+    
+#TheNewYorkTimesCrosstab
+  crosstab1 <- tabyl(SuperSnipped, TheNewYorkTimes, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheNewYorkTimes, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheNewYorkTimes, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheNewYorkTimes, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+TheNewYorkTimesCrosstab  <- add_column(combinedtab, PercTrustOutlet = 'TheNewYorkTimes', .before = 1)
+    
+
+#TheGuardianCrosstab
+  crosstab1 <- tabyl(SuperSnipped, TheGuardian, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheGuardian, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheGuardian, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheGuardian, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+TheGuardianCrosstab  <- add_column(combinedtab, PercTrustOutlet = 'TheGuardian', .before = 1)
+    
+
+#TheEconomistCrosstab
+  crosstab1 <- tabyl(SuperSnipped, TheEconomist, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheEconomist, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheEconomist, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheEconomist, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+TheEconomistCrosstab  <- add_column(combinedtab, PercTrustOutlet = 'TheEconomist', .before = 1)
+
+
+#TheWallStreetJournalCrosstab
+  crosstab1 <- tabyl(SuperSnipped, TheWallStreetJournal, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheWallStreetJournal, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheWallStreetJournal, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheWallStreetJournal, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+TheWallStreetJournalCrosstab  <- add_column(combinedtab, PercTrustOutlet = 'TheWallStreetJournal', .before = 1)
+
+
+#TheHuffingtonPostCrosstab
+  crosstab1 <- tabyl(SuperSnipped, TheHuffingtonPost, gender, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-4,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab1 = crosstab1[-1,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% rename(NewsOutlet = 1)
+
+  crosstab2 <- tabyl(SuperSnipped, TheHuffingtonPost, AgeGroup, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab2 = crosstab2[-4,]
+  crosstab2 <- crosstab2 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab2 = crosstab2[-1,]
+  crosstab2 = crosstab2[-1,]
+  crosstab2 <- crosstab2 %>% rename(NewsOutlet = 1)
+
+  crosstab3 <- tabyl(SuperSnipped, TheHuffingtonPost, Province, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab3 = crosstab3[-4,]
+  crosstab3 <- crosstab3 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab3 = crosstab3[-1,]
+  crosstab3 = crosstab3[-1,]
+  crosstab3 <- crosstab3 %>% rename(NewsOutlet = 1)
+
+  crosstab4 <- tabyl(SuperSnipped, TheHuffingtonPost, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab4 = crosstab4[-4,]
+  crosstab4 <- crosstab4 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+  crosstab4 = crosstab4[-1,]
+  crosstab4 = crosstab4[-1,]
+  crosstab4 <- crosstab4 %>% rename(NewsOutlet= 1)
+  
+  combinedtab <- cbind(crosstab1, crosstab2, crosstab3, crosstab4)
+    combinedtab = combinedtab[-6]
+    combinedtab = combinedtab[-10]
+    combinedtab = combinedtab[-21]
+    combinedtab = combinedtab[-1]
+
+TheHuffingtonPostCrosstab  <- add_column(combinedtab, PercTrustOutlet = 'TheHuffingtonPost', .before = 1)
+
+    
+BTable <- rbind(CTVCrosstab, CBCCrosstab, TheHillTimesCrosstab, MacLeansCrosstab, TheCanadianPublicAffairsChannelCrosstab, TheGlobeandMailCrosstab, TheNationalPostCrosstab, Toronto_StarCrosstab, TheCalgaryHeraldCrosstab, TheVancouverSunCrosstab, TheProvinceCrosstab, TheLeaderPostCrosstab, TheWinnipegFreePressCrosstab, TheYukonNewsCrosstab, EveningTelegramCrosstab, TheDailyGleanerCrosstab, TheHalifaxHeraldCrosstab, LaPresseCrosstab, LaDevoirCrosstab, LeJournaldeMontréalLeJournaldeQuébecCrosstab, CNNCrosstab, FoxNewsCrosstab, TheNewYorkTimesCrosstab, TheGuardianCrosstab, TheEconomistCrosstab, TheWallStreetJournalCrosstab, TheHuffingtonPostCrosstab)
+
+
+#this is the final product 
+  #a crosstable showing the % of participants who reported that they trusted each news source; 
+      #only calculates if they've actually seen that news source however. 
+BTable
+
+```
+```{r}
+###Table3
+    #Graphs are represented by objects with the nomenclature Table3 'NewsSource'
+                                                        #e.g Table3CBC
+library(ez)
+library(tidyr) 
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+library(naniar)
+library(janitor)
+library(tibble)
+
+
+setwd("C:/Users/David/Desktop/RStudio/Data")
+  RawData <- read_csv("DataSciencesFile.csv")
+  #now I want a version without the top two rows
+    #Passes it by twice; probably a better way to do this but hey it works
+      SnippedData <- RawData[(rownames(RawData) != 1),]
+      SnippedData <- SnippedData[(rownames(SnippedData) != 1),]
+      
+SnippedData$birthyear <- as.numeric(SnippedData$birthyear)
+    #Okay now that it's numeric time to calculate the ages
+      SnippedData <- SnippedData %>% mutate(age = (birthyear - 2022)*-1)
+    #Now to put those ages into age brackets
+      #Probably many ways to do this, but I know mutate so we'll go with that
+          #no need for 18 and below category since they get removed by survey anyways
+      SnippedData <- SnippedData %>% mutate(AgeGroup = case_when(age >= 18 & age <= 34 ~ '18 to 34',
+                                                                 age >= 35 & age <= 49 ~ '35 to 49',
+                                                                 age >= 50 & age <= 64 ~ '50 to 64',
+                                                                 age >= 65 ~ '65+'))
+      
+#Tables 3-30 (or set 3): Among those familiar with [source of information] % who consider
+#  that source of information left-leaning, right-leaning, centrist, or impartial.
+#   Each table in this section should source of information (i.e. CBC is one table)
+#    Each row is a category of response - i.e. left-leaning, right-leaning, centrist,
+#    impartial are all one row each.
+#    Variables to input into columns should be:
+#              ○ Full sample
+#              ○ Voting behaviour in 2019 (compare only those who voted Liberal,
+#                        Conservative, NDP or Green, Bloc Quebecois but do not include columns
+#                        for those who did not vote or do not remember)
+#                ○ Those who are familiar and trust that source of information vs. those are
+#                                      familiar but do not trust that source of information
+      
+
+#Create Data For Subsetting
+ SuperSnipped <- SnippedData %>% select(AgeGroup, Province, gender, VotingBehaviour = Q110, 
+                                             CTV = Q118_1, 
+                                             CBC = Q118_2,
+                                             TheHillTimes = Q118_3, 
+                                             MacLeans = Q118_4,
+                                             TheCanadianPublicAffairsChannel = Q118_5,
+                                             TheGlobeandMail = Q118_7, 
+                                             TheNationalPost = Q118_8, 
+                                             Toronto_Star = Q118_9,
+                                             TheCalgaryHerald = Q118_10,
+                                             TheVancouverSun = Q118_11,
+                                             TheProvince = Q118_12,
+                                             TheLeaderPost = Q118_13, 
+                                             TheWinnipegFreePress = Q118_14, 
+                                             TheYukonNews = Q118_15,
+                                             EveningTelegram = Q118_16, 
+                                             TheDailyGleaner = Q118_17,
+                                            TheHalifaxHerald = Q118_18,
+                                            LaPresse = Q118_19, 
+                                            LaDevoir = Q118_20, 
+                                            LeJournaldeMontréalLeJournaldeQuébec = Q118_21,
+                                            CNN = Q118_22,
+                                            FoxNews = Q118_23,
+                                            TheNewYorkTimes = Q118_24, 
+                                            TheGuardian = Q118_25, 
+                                            TheEconomist = Q118_26, 
+                                            TheWallStreetJournal = Q118_27, 
+                                            TheHuffingtonPost = Q118_28)
+       #Remove Voting Patterns we won't use
+            SuperSnipped <-subset(SuperSnipped, VotingBehaviour!="I did not vote")
+            SuperSnipped <- subset(SuperSnipped, VotingBehaviour !="I don’t remember")
+            SuperSnipped <- subset(SuperSnipped, VotingBehaviour !="Other")
+            SuperSnipped <- subset(SuperSnipped, VotingBehaviour !="The People’s Party led by Maxime Bernier")
+        
+            
+            
+#CTVCrosstab
+  crosstab1 <- tabyl(SuperSnipped, CTV, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3CTV <- crosstab1 
+
+#CBCCrosstab
+   crosstab1 <- tabyl(SuperSnipped, CBC, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3CBC <- crosstab1 
+
+#TheHillTimesCrossTab
+  crosstab1 <- tabyl(SuperSnipped, TheHillTimes, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheHillTimes <- crosstab1 
+
+#MacLeansCrossTab
+  crosstab1 <- tabyl(SuperSnipped, MacLeans, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3MacLeans <- crosstab1 
+
+#TheCanadianPublicAffairsChannel
+  crosstab1 <- tabyl(SuperSnipped, TheCanadianPublicAffairsChannel, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheCanadianPublicAffairsChannel <- crosstab1 
+
+
+#TheGlobeandMail
+  crosstab1 <- tabyl(SuperSnipped, TheGlobeandMail, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheGlobeandMail <- crosstab1 
+
+#TheNationalPost
+  crosstab1 <- tabyl(SuperSnipped, TheNationalPost, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheNationalPost <- crosstab1 
+
+
+#Toronto_Star
+  crosstab1 <- tabyl(SuperSnipped, Toronto_Star, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3Toronto_Star <- crosstab1 
+
+#TheCalgaryHerald
+  crosstab1 <- tabyl(SuperSnipped, TheCalgaryHerald, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheCalgaryHerald <- crosstab1 
+
+#TheVancouverSun
+  crosstab1 <- tabyl(SuperSnipped, TheVancouverSun, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheVancouverSun <- crosstab1 
+
+#TheProvince
+  crosstab1 <- tabyl(SuperSnipped, TheProvince, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheProvince <- crosstab1 
+
+#TheLeaderPost
+crosstab1 <- tabyl(SuperSnipped, TheLeaderPost, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheLeaderPost <- crosstab1 
+
+#TheWinnipegFreePress**
+crosstab1 <- tabyl(SuperSnipped, TheWinnipegFreePress, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  #crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-2,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheWinnipegFreePress <- crosstab1
+
+
+#TheYukonNews*
+crosstab1 <- tabyl(SuperSnipped, TheYukonNews, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-5,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheYukonNews <- crosstab1
+
+#EveningTelegram*
+crosstab1 <- tabyl(SuperSnipped, EveningTelegram, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-5,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3EveningTelegram <- crosstab1
+
+#TheHalifaxHeral
+crosstab1 <- tabyl(SuperSnipped, TheHalifaxHerald, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheHalifaxHerald <- crosstab1
+
+
+#LaPresse
+crosstab1 <- tabyl(SuperSnipped, LaPresse, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3LaPresse <- crosstab1
+
+
+#LaDevoir
+crosstab1 <- tabyl(SuperSnipped, LaDevoir, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3LaDevoir <- crosstab1
+
+#LeJournaldeMontréalLeJournaldeQuébec
+crosstab1 <- tabyl(SuperSnipped, LeJournaldeMontréalLeJournaldeQuébec, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3LeJournaldeMontréalLeJournaldeQuébec <- crosstab1
+
+#CNN
+crosstab1 <- tabyl(SuperSnipped, CNN, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3CNN <- crosstab1
+
+
+#FoxNews
+crosstab1 <- tabyl(SuperSnipped, FoxNews, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3FoxNews <- crosstab1
+
+
+#TheNewYorkTimes
+crosstab1 <- tabyl(SuperSnipped, TheNewYorkTimes, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheNewYorkTimes <- crosstab1
+
+#TheGuardian
+crosstab1 <- tabyl(SuperSnipped, TheGuardian, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheGuardian <- crosstab1
+
+
+#TheEconomist
+crosstab1 <- tabyl(SuperSnipped, TheEconomist, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheEconomist <- crosstab1
+
+#TheWallStreetJournal
+crosstab1 <- tabyl(SuperSnipped, TheWallStreetJournal, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheWallStreetJournal <- crosstab1
+
+
+#TheHuffingtonPost
+crosstab1 <- tabyl(SuperSnipped, TheHuffingtonPost, VotingBehaviour, show_missing_levels = TRUE, show_na = TRUE)
+  crosstab1 = crosstab1[-6,]
+  crosstab1 = crosstab1[-1,]
+  crosstab1 <- crosstab1 %>% adorn_percentages("col") %>% adorn_pct_formatting(digits = 1)
+Table3TheHuffingtonPost <- crosstab1
+
+    
+```
+```{r}
+#Things I didn't do, but maybe how I would approach them or why I left them out
+  #Totals
+      #there is an option to create an extra totals row or column in the tabyl function
+      #but it interfered with calculating totals quite a lot; although I managed to remove the N/A row for similar reasons,
+          #I would need to have figured out a way to efficiently add it back (which I never did)
+#Absolute Count Displayed Next to percentages ~ 75% (38)
+    #It's easy to implement with tabyl, and would have alleviated the problem of 1 person agreeing looking like a solid 100%
+        #No excuse other than me getting tunnel vision to the exact instructions + inefficient code meaning I'd have to edit extremely long lists to             include it
+#Familiar & Trust vs Familiar & do not trust 
+  #This one hurts, because if I just left my self enough time I could figure it out but I couldn't tell you how to do it atm. 
+```
+
